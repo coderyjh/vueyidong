@@ -16,14 +16,21 @@
       </van-tabbar-item>
       <van-tabbar-item to="/my">
         <i slot="icon" class="iconfont iconwode"></i>
-        <span>我的</span>
+        <span class="text">{{ $store.state.user ? '我的' : '未登录' }}</span>
       </van-tabbar-item>
     </van-tabbar>
   </div>
 </template>
 
 <script>
-export default {}
+export default {
+  name: 'LayoutIndex',
+  data() {
+    return {
+      active: 0
+    }
+  }
+}
 </script>
 
 <style lang="less" scoped>

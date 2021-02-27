@@ -1,7 +1,17 @@
 <template>
   <div class="login-container">
     <!-- 导航栏 -->
-    <van-nav-bar class="page-nav-bar" title="登录" />
+    <van-nav-bar class="page-nav-bar" title="登录">
+      <!-- 只有传递了 redirect 这样一个参数，才显示返回按钮 -->
+      <!-- <van-icon
+        v-if="$route.query.redirect"
+        slot="left"
+        name="cross"
+        @click="$router.back()"
+      /> -->
+      <van-icon name="cross" slot="left" @click="$router.back()" />
+    </van-nav-bar>
+
     <!-- /导航栏 -->
 
     <!-- 登录表单 -->
@@ -113,6 +123,11 @@ export default {
         const { data } = await login(this.user)
         this.$store.commit('setUser', data.data)
         this.$toast.success('登入成功')
+        // 跳转回原来的页面
+        // this.$router.back()
+        // console.log(this.$route.query.redirect) // '/my'
+        // 从哪里过来的，直接到哪里，获取不到 redirect 数据，到首页
+        this.$router.push(this.$route.query.redirect || '/')
       } catch (err) {
         if (err.response.status === 400) {
           this.$toast.fail('手机号码或者验证码输入错误')
