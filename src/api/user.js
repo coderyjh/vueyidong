@@ -1,16 +1,10 @@
-/**
- * 用户相关的请求模块
- */
 import request from '@/utils/request'
 
-/**
- * 用户登录
- */
 export const login = data => {
   return request({
     method: 'POST',
     url: '/app/v1_0/authorizations',
-    data
+    data: data
   })
 }
 export const sendSms = mobile => {
@@ -20,19 +14,15 @@ export const sendSms = mobile => {
   })
 }
 
-// 获取用户自己的信息
+// 获取用户信息
 export const getUserInfo = () => {
   return request({
     method: 'GET',
     url: '/app/v1_0/user'
-    // 携带请求头信息
-    /* headers: {
-      Authorization: `Bearer ${store.state.user.token}`
-    } */
   })
 }
 
-// 获取用户频道列表
+// 获取自己的信息
 export const getUserChannels = () => {
   return request({
     method: 'GET',

@@ -1,5 +1,11 @@
 <template>
-  <van-cell class="article-item">
+  <van-cell
+    class="article-item"
+    :to="{
+      name: 'article',
+      params: { articleId: article.art_id }
+    }"
+  >
     <div slot="title" class="title">{{ article.title }}</div>
     <div slot="label">
       <div v-if="article.cover.type === 3" class="cover-wrap">
@@ -67,6 +73,7 @@ export default {
   .cover-wrap {
     display: flex;
     padding: 30px 0;
+    margin-bottom: 10px;
     .cover-item {
       flex: 1;
       height: 146px;

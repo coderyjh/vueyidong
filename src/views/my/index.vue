@@ -10,7 +10,7 @@
             fit="cover"
             src="https://img.yzcdn.cn/vant/cat.jpeg"
           />
-          <span class="name">黑马头条号</span>
+          <span class="name">田军阳是个猪</span>
         </div>
         <div class="right">
           <van-button size="mini" round>编辑资料</van-button>
