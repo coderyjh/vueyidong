@@ -6,15 +6,15 @@
 
     <div class="main-wrap">
       <!-- 加载中 -->
-      <div class="loading-wrap">
+      <div class="loading-wrap" v-if="loading">
         <van-loading color="#3296fa" vertical>加载中</van-loading>
       </div>
       <!-- /加载中 -->
 
       <!-- 加载完成-文章详情 -->
-      <div class="article-detail">
+      <div class="article-detail" v-else-if="article.title">
         <!-- 文章标题 -->
-        <h1 class="article-title">这是文章标题</h1>
+        <h1 class="article-title">{{ article.title }}</h1>
         <!-- /文章标题 -->
 
         <!-- 用户信息 -->
@@ -24,78 +24,96 @@
             slot="icon"
             round
             fit="cover"
-            src="https://img.yzcdn.cn/vant/cat.jpeg"
+            :src="article.aut_photo"
           />
-          <div slot="title" class="user-name">黑马头条号</div>
-          <div slot="label" class="publish-date">14小时前</div>
-          <van-button
+          <div slot="title" class="user-name">{{ article.aut_name }}</div>
+          <div slot="label" class="publish-date">
+            {{ article.pubdate | relativeTime }}
+          </div>
+          <follow-user
             class="follow-btn"
-            type="info"
-            color="#3296fa"
-            round
-            size="small"
-            icon="plus"
-            >关注</van-button
-          >
-          <!-- <van-button
-            class="follow-btn"
-            round
-            size="small"
-          >已关注</van-button> -->
+            v-model="article.is_followed"
+            :user-id="article.aut_id"
+          ></follow-user>
         </van-cell>
         <!-- /用户信息 -->
 
         <!-- 文章内容 -->
-        <div class="article-content">这是文章内容</div>
+        <div
+          class="article-content markdown-body"
+          v-html="article.content"
+          ref="article-content"
+        ></div>
         <van-divider>正文结束</van-divider>
+
+        <!-- 底部区域 -->
+        <div class="article-bottom">
+          <van-button class="comment-btn" type="default" round size="small"
+            >写评论</van-button
+          >
+          <!-- 这里在 info 替换成 badge -->
+          <van-icon name="comment-o" badge="123" color="#777" />
+          <!-- 文章收藏 -->
+          <collect-article
+            class="btn-item"
+            v-model="article.is_collected"
+            :article-id="article.art_id"
+          />
+          <!-- 文章点赞 -->
+          <like-article
+            class="btn-item"
+            v-model="article.attitude"
+            :article-id="article.art_id"
+          />
+          <van-icon name="share" color="#777777"></van-icon>
+        </div>
+        <!-- /底部区域 -->
       </div>
       <!-- /加载完成-文章详情 -->
 
       <!-- 加载失败：404 -->
-      <div class="error-wrap">
+      <div class="error-wrap" v-else-if="errStatus === 404">
         <van-icon name="failure" />
         <p class="text">该资源不存在或已删除！</p>
       </div>
       <!-- /加载失败：404 -->
 
       <!-- 加载失败：其它未知错误（例如网络原因或服务端异常） -->
-      <div class="error-wrap">
+      <div class="error-wrap" v-else>
         <van-icon name="failure" />
         <p class="text">内容加载失败！</p>
-        <van-button class="retry-btn">点击重试</van-button>
+        <van-button class="retry-btn" @click="loadArticle">点击重试</van-button>
       </div>
       <!-- /加载失败：其它未知错误（例如网络原因或服务端异常） -->
     </div>
-
-    <!-- 底部区域 -->
-    <div class="article-bottom">
-      <van-button class="comment-btn" type="default" round size="small"
-        >写评论</van-button
-      >
-      <van-icon name="comment-o" instead="123" color="#777" />
-      <van-icon color="#777" name="star-o" />
-      <van-icon color="#777" name="good-job-o" />
-      <van-icon name="share" color="#777777"></van-icon>
-    </div>
-    <!-- /底部区域 -->
   </div>
 </template>
 
 <script>
-import { getArticleById } from '@/api/article.js'
-
+import { getArticleById } from '@/api/article'
+import { ImagePreview } from 'vant'
+import FollowUser from '@/components/follow-user'
+import CollectArticle from '@/components/collect-article'
+import LikeArticle from '@/components/like-article'
 export default {
   name: 'ArticleIndex',
-  components: {},
+  components: {
+    FollowUser,
+    CollectArticle,
+    LikeArticle
+  },
   props: {
     articleId: {
-      type: [Number, String],
+      type: [Number, String, Object],
       required: true
     }
   },
   data() {
     return {
-      article: {} // 文章详情
+      article: {}, // 文章详情
+      loading: true, // 加载中的状态
+      errStatus: 0, // 失败的状态码
+      followLoading: false // 关注按钮的 loading 状态
     }
   },
   computed: {},
@@ -103,23 +121,91 @@ export default {
   created() {
     this.loadArticle()
   },
-  mounted() {},
+  mounted() {
+    // mounted 里面也是拿不到的，因为获取数据的操作是异步（渲染又在获取数据之后）
+    // console.log(this.$refs['article-content'])
+  },
   methods: {
     async loadArticle() {
+      this.loading = true
+      // console.log(this.articleId.toString(), 233)
       try {
-        const { data } = await getArticleById(this.articleId)
+        const { data } = await getArticleById(this.articleId.toString())
+        /* if (Math.random() > 0.5) {
+          JSON.parse('xxx')
+        } */
         this.article = data.data
+        setTimeout(() => {
+          this.previewImage()
+        }, 0)
       } catch (err) {
-        console.log(err)
+        if (err.response && err.response.status === 404) {
+          this.errStatus = 404
+        }
+        console.log('获取数据失败', err)
       }
+      // 关闭 loading 状态
+      this.loading = false
+    },
+    previewImage() {
+      const articleContent = this.$refs['article-content']
+      const imgs = articleContent.querySelectorAll('img')
+      const images = []
+      imgs.forEach((img, index) => {
+        images.push(img.src)
+        img.onclick = function() {
+          ImagePreview({
+            images,
+            startPosition: index
+          })
+        }
+      })
     }
+    /* async onFollow() {
+      this.followLoading = true // 打开关注按钮的 loading
+      try {
+        if (this.article.is_followed) {
+          // 已关注，取消关注
+          await deleteFollow(this.article.aut_id)
+        } else {
+          // 没有关注，添加关注
+          await addFollow(this.article.aut_id)
+        }
+        // 更新视图状态
+        this.article.is_followed = !this.article.is_followed
+      } catch (err) {
+        let message = '操作失败，请重试！'
+        // 例如用户关注自己会报错
+        if (err.response && err.response.status === 400) {
+          message = '你不能关注你自己！'
+        }
+        this.$toast(message)
+      }
+      this.followLoading = false // 关闭按钮的 loading 状态
+    } */
   }
 }
 </script>
 
 <style scoped lang="less">
+// 测试 => http://localhost:8080/#/article/138567
+@import './github-markdown.css';
 .article-container {
+  .van-nav-bar {
+    /deep/.van-icon {
+      color: #fff;
+    }
+  }
+
   .main-wrap {
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    background-color: #fff;
+  }
+  .article-detail {
     position: fixed;
     left: 0;
     right: 0;
@@ -127,15 +213,12 @@ export default {
     bottom: 88px;
     overflow-y: scroll;
     background-color: #fff;
-  }
-  .article-detail {
     .article-title {
       font-size: 40px;
       padding: 50px 32px;
       margin: 0;
       color: #3a3a3a;
     }
-
     .user-info {
       padding: 0 32px;
       .avatar {
@@ -159,7 +242,6 @@ export default {
         height: 58px;
       }
     }
-
     .article-content {
       padding: 55px 32px;
       /deep/ p {
@@ -167,7 +249,6 @@ export default {
       }
     }
   }
-
   .loading-wrap {
     padding: 200px 32px;
     display: flex;
@@ -175,7 +256,6 @@ export default {
     justify-content: center;
     background-color: #fff;
   }
-
   .error-wrap {
     padding: 200px 32px;
     display: flex;
@@ -201,7 +281,6 @@ export default {
       color: #666666;
     }
   }
-
   .article-bottom {
     position: fixed;
     left: 0;
@@ -222,12 +301,29 @@ export default {
       line-height: 46px;
       color: #a7a7a7;
     }
-    .van-icon {
+    /deep/ .van-icon {
       font-size: 40px;
+    }
+    .comment-icon {
+      top: 2px;
+      color: #777;
       .van-info {
         font-size: 16px;
         background-color: #e22829;
       }
+    }
+    .btn-item {
+      border: none;
+      padding: 0;
+      height: 40px;
+      line-height: 40px;
+      color: #777777;
+    }
+    .collect-btn--collected {
+      color: #ffa500;
+    }
+    .like-btn--liked {
+      color: #e5645f;
     }
   }
 }

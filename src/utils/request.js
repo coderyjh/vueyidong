@@ -1,8 +1,20 @@
 import axios from 'axios'
 import store from '@/store'
+import jsonBig from 'json-bigint'
 
 const request = axios.create({
-  baseURL: 'http://ttapi.research.itcast.cn/' // 接口的基准路径
+  baseURL: 'http://ttapi.research.itcast.cn/', // 接口的基准路径
+  transformResponse: [
+    function(data) {
+      try {
+        return jsonBig.parse(data)
+      } catch (err) {
+        return {
+          data
+        }
+      }
+    }
+  ]
 })
 
 // 请求拦截器
