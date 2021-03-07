@@ -45,14 +45,26 @@
           ref="article-content"
         ></div>
         <van-divider>正文结束</van-divider>
+        <!-- 文章评论列表 -->
+        <comment-list
+          :source="article.art_id"
+          :list="commentList"
+          @onload-success="totalCommentCount = $event.total_count"
+          @reply-click="onReplyClick"
+        />
 
         <!-- 底部区域 -->
         <div class="article-bottom">
-          <van-button class="comment-btn" type="default" round size="small"
+          <van-button
+            class="comment-btn"
+            type="default"
+            round
+            size="small"
+            @click="isPostShow = true"
             >写评论</van-button
           >
           <!-- 这里在 info 替换成 badge -->
-          <van-icon name="comment-o" badge="123" color="#777" />
+          <van-icon name="comment-o" :badge="totalCommentCount" color="#777" />
           <!-- 文章收藏 -->
           <collect-article
             class="btn-item"
@@ -68,6 +80,13 @@
           <van-icon name="share" color="#777777"></van-icon>
         </div>
         <!-- /底部区域 -->
+        <!-- 发布评论的弹层 -->
+        <van-popup v-model="isPostShow" position="bottom">
+          <comment-post
+            :target="article.art_id"
+            @post-success="onPostSuccess"
+          ></comment-post>
+        </van-popup>
       </div>
       <!-- /加载完成-文章详情 -->
 
@@ -86,6 +105,16 @@
       </div>
       <!-- /加载失败：其它未知错误（例如网络原因或服务端异常） -->
     </div>
+    <!-- 评论回复 -->
+    <!-- 弹出层是懒渲染的：只有在第一次展示的时候才会渲染里面的内容，之后它的关闭和显示都是在切换内容的显示和隐藏 -->
+    <van-popup v-model="isReplyShow" position="bottom" style="height: 100%;">
+      <comment-reply
+        v-if="isReplyShow"
+        :comment="currentComment"
+        @close="isReplyShow = false"
+      />
+    </van-popup>
+    <!-- /评论回复 -->
   </div>
 </template>
 
@@ -95,12 +124,24 @@ import { ImagePreview } from 'vant'
 import FollowUser from '@/components/follow-user'
 import CollectArticle from '@/components/collect-article'
 import LikeArticle from '@/components/like-article'
+import CommentList from './components/comment-list'
+import CommentPost from './components/comment-post'
+import CommentReply from './components/comment-reply'
 export default {
   name: 'ArticleIndex',
   components: {
     FollowUser,
     CollectArticle,
-    LikeArticle
+    LikeArticle,
+    CommentList,
+    CommentPost,
+    CommentReply
+  },
+  // 给所有的后代组件提供数据
+  provide: function() {
+    return {
+      articleId: this.articleId
+    }
   },
   props: {
     articleId: {
@@ -113,7 +154,12 @@ export default {
       article: {}, // 文章详情
       loading: true, // 加载中的状态
       errStatus: 0, // 失败的状态码
-      followLoading: false // 关注按钮的 loading 状态
+      followLoading: false, // 关注按钮的 loading 状态
+      totalCommentCount: 0,
+      isPostShow: false, // 控制评论弹层显示/隐藏
+      commentList: [], // 评论列表
+      isReplyShow: false,
+      currentComment: {} // 当前点击回复的评论项
     }
   },
   computed: {},
@@ -130,10 +176,14 @@ export default {
       this.loading = true
       // console.log(this.articleId.toString(), 233)
       try {
-        const { data } = await getArticleById(this.articleId.toString())
+        const { data } = await getArticleById(this.articleId)
         /* if (Math.random() > 0.5) {
           JSON.parse('xxx')
         } */
+        // 后端返回的可能是 null
+        if (data.data.attitude === null) {
+          data.data.attitude = -1
+        }
         this.article = data.data
         setTimeout(() => {
           this.previewImage()
@@ -160,29 +210,18 @@ export default {
           })
         }
       })
+    },
+    onPostSuccess(data) {
+      // 关闭弹层
+      this.isPostShow = false
+      // 将发布内容展示到页面顶部
+      this.commentList.unshift(data.new_obj)
+    },
+    onReplyClick(comment) {
+      console.log(comment)
+      this.currentComment = comment
+      this.isReplyShow = true
     }
-    /* async onFollow() {
-      this.followLoading = true // 打开关注按钮的 loading
-      try {
-        if (this.article.is_followed) {
-          // 已关注，取消关注
-          await deleteFollow(this.article.aut_id)
-        } else {
-          // 没有关注，添加关注
-          await addFollow(this.article.aut_id)
-        }
-        // 更新视图状态
-        this.article.is_followed = !this.article.is_followed
-      } catch (err) {
-        let message = '操作失败，请重试！'
-        // 例如用户关注自己会报错
-        if (err.response && err.response.status === 400) {
-          message = '你不能关注你自己！'
-        }
-        this.$toast(message)
-      }
-      this.followLoading = false // 关闭按钮的 loading 状态
-    } */
   }
 }
 </script>
@@ -191,12 +230,6 @@ export default {
 // 测试 => http://localhost:8080/#/article/138567
 @import './github-markdown.css';
 .article-container {
-  .van-nav-bar {
-    /deep/.van-icon {
-      color: #fff;
-    }
-  }
-
   .main-wrap {
     position: fixed;
     left: 0;
